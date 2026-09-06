@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="workGlow" cx="50%" cy="46%" r="58%">
+      <stop offset="0%" stop-color="#8FE8FF" stop-opacity="0.34"/>
+      <stop offset="54%" stop-color="#7454FF" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#0C0C0C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="workStroke" x1="132" y1="132" x2="392" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6FBFF"/>
+      <stop offset="0.46" stop-color="#8FE8FF"/>
+      <stop offset="1" stop-color="#7454FF"/>
+    </linearGradient>
+    <linearGradient id="workGlass" x1="108" y1="86" x2="408" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+    </linearGradient>
+    <filter id="workShadow" x="64" y="64" width="384" height="384" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#8FE8FF" flood-opacity="0.22"/>
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="transparent"/>
+  <circle cx="256" cy="256" r="208" fill="url(#workGlow)"/>
+  <rect x="96" y="96" width="320" height="320" rx="76" fill="url(#workGlass)" stroke="#D7E2EA" stroke-opacity="0.16"/>
+  <g filter="url(#workShadow)">
+    <path d="M184 214H328C350.091 214 368 231.909 368 254V328C368 350.091 350.091 368 328 368H184C161.909 368 144 350.091 144 328V254C144 231.909 161.909 214 184 214Z" stroke="url(#workStroke)" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M213 214V184C213 169.641 224.641 158 239 158H273C287.359 158 299 169.641 299 184V214" stroke="url(#workStroke)" stroke-width="18" stroke-linecap="round"/>
+    <path d="M146 273H366" stroke="url(#workStroke)" stroke-width="18" stroke-linecap="round"/>
+    <path d="M232 274H280V306H232V274Z" fill="#0C0C0C" stroke="url(#workStroke)" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+  <path d="M122 121L390 390" stroke="#D7E2EA" stroke-opacity="0.14" stroke-width="2"/>
+  <path d="M390 121L122 390" stroke="#D7E2EA" stroke-opacity="0.08" stroke-width="2"/>
+</svg>

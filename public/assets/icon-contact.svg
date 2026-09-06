@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="contactGlow" cx="50%" cy="48%" r="62%">
+      <stop offset="0%" stop-color="#8FE8FF" stop-opacity="0.36"/>
+      <stop offset="54%" stop-color="#F73B20" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#0C0C0C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="contactStroke" x1="134" y1="144" x2="378" y2="374" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6FBFF"/>
+      <stop offset="0.5" stop-color="#8FE8FF"/>
+      <stop offset="1" stop-color="#7454FF"/>
+    </linearGradient>
+    <linearGradient id="contactGlass" x1="104" y1="90" x2="412" y2="424" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+    </linearGradient>
+    <filter id="contactShadow" x="62" y="64" width="388" height="384" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#8FE8FF" flood-opacity="0.22"/>
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="transparent"/>
+  <circle cx="256" cy="256" r="210" fill="url(#contactGlow)"/>
+  <rect x="96" y="96" width="320" height="320" rx="76" fill="url(#contactGlass)" stroke="#D7E2EA" stroke-opacity="0.16"/>
+  <g filter="url(#contactShadow)">
+    <path d="M158 184H354C374.987 184 392 201.013 392 222V330C392 350.987 374.987 368 354 368H158C137.013 368 120 350.987 120 330V222C120 201.013 137.013 184 158 184Z" stroke="url(#contactStroke)" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M134 213L256 292L378 213" stroke="url(#contactStroke)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="356" cy="158" r="32" fill="#0C0C0C" stroke="url(#contactStroke)" stroke-width="14"/>
+    <path d="M356 145V158L367 166" stroke="#F6FBFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="M122 121L390 390" stroke="#D7E2EA" stroke-opacity="0.12" stroke-width="2"/>
+  <path d="M390 121L122 390" stroke="#D7E2EA" stroke-opacity="0.08" stroke-width="2"/>
+</svg>
