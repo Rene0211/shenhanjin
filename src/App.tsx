@@ -9,6 +9,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { PageTransitionLayer, type TransitionRequest } from "./components/PageTransitionLayer";
+import RadialRevealButton from "./components/originkit/ui/radial-reveal-button";
 import { education, experiences, profile, projects, type Project } from "./data/portfolio";
 import { gsap, motionDuration, motionEase, motionValue, prefersReducedMotion, useGSAP } from "./lib/gsap";
 import {
@@ -17,6 +18,7 @@ import {
   shouldShowBackToTop,
   type RectLike,
 } from "./lib/motion";
+import { projectButtonTheme } from "./lib/projectButtonTheme";
 
 type Page = "home" | "detail";
 
@@ -266,17 +268,45 @@ function ProjectCard({
         <div className="project-card-footer">
           <span>{project.time}</span>
           {onOpen ? (
-            <Button
-              variant="ghost"
+            <RadialRevealButton
+              className="ui-button ui-button-ghost radial-project-button"
+              label="查看详情"
               disabled={project.placeholder}
               onClick={() => {
                 if (!cardRef.current) return;
                 onOpen(project, cardRef.current.getBoundingClientRect());
               }}
-            >
-              查看详情
-              <ArrowRight aria-hidden="true" size={18} />
-            </Button>
+              padding="0 20px"
+              rounded={100}
+              colors={{
+                fill: projectButtonTheme.fill,
+                textColor: projectButtonTheme.textColor,
+                hoverFill: projectButtonTheme.hoverFill,
+                hoverTextColor: projectButtonTheme.hoverTextColor,
+              }}
+              addIcon
+              icon={{
+                type: "symbol",
+                symbol: "→",
+                side: "right",
+                size: 20,
+                color: projectButtonTheme.iconColor,
+                hoverColor: projectButtonTheme.iconHoverColor,
+              }}
+              gap={10}
+              border={{
+                borderWidth: 1,
+                borderStyle: "solid",
+                borderColor: "rgba(143, 232, 255, 0.52)",
+              }}
+              font={{
+                fontFamily: "inherit",
+                fontSize: 15,
+                fontWeight: 650,
+                lineHeight: 1,
+                letterSpacing: "0.04em",
+              }}
+            />
           ) : null}
         </div>
       </div>
