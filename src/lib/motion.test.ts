@@ -39,3 +39,27 @@ test("back-to-top control appears only after meaningful detail scrolling", () =>
   assert.equal((shouldShowBackToTop as (scrollY: number, viewportHeight: number) => boolean)(500, 800), false);
   assert.equal((shouldShowBackToTop as (scrollY: number, viewportHeight: number) => boolean)(700, 800), true);
 });
+
+test("profile cards collide horizontally on desktop and vertically on mobile", () => {
+  const getProfileCollisionMotion = (motion as Record<string, unknown>).getProfileCollisionMotion;
+  assert.equal(typeof getProfileCollisionMotion, "function");
+
+  const getMotion = getProfileCollisionMotion as (viewportWidth: number) => {
+    impactScale: "scaleX" | "scaleY";
+    first: { xPercent: number; yPercent: number };
+    second: { xPercent: number; yPercent: number };
+  };
+  const desktop = getMotion(1280);
+  const mobile = getMotion(600);
+
+  assert.equal(desktop.impactScale, "scaleY");
+  assert.ok(desktop.first.xPercent < 0 && desktop.second.xPercent > 0);
+  assert.equal(mobile.impactScale, "scaleX");
+  assert.ok(mobile.first.yPercent < 0 && mobile.second.yPercent > 0);
+});
+
+test("profile reveal restarts after returning above the section", () => {
+  const getProfileRevealToggleActions = (motion as Record<string, unknown>).getProfileRevealToggleActions;
+  assert.equal(typeof getProfileRevealToggleActions, "function");
+  assert.equal((getProfileRevealToggleActions as () => string)(), "restart none none reset");
+});

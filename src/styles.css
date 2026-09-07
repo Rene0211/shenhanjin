@@ -988,8 +988,7 @@ img {
   will-change: transform;
 }
 
-.summary-content .media-frame img,
-.profile-intro-visual img {
+.summary-content .media-frame img {
   object-fit: contain;
 }
 
@@ -1017,9 +1016,29 @@ img {
 }
 
 .profile-intro-layout {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.03fr) minmax(360px, 0.97fr);
   gap: var(--spacing-20);
+  perspective: 1400px;
+}
+
+.profile-intro-impact {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 50%;
+  z-index: 4;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, rgba(143, 232, 255, 0.96) 42%, rgba(125, 92, 255, 0.96) 58%, transparent);
+  box-shadow:
+    0 0 12px rgba(143, 232, 255, 0.9),
+    0 0 34px rgba(125, 92, 255, 0.66);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transform-origin: center;
 }
 
 .profile-intro-pane {
@@ -1091,10 +1110,15 @@ img {
 
 .profile-intro-about {
   max-width: 640px;
-  color: rgba(215, 226, 234, 0.72);
+  color: rgb(215, 226, 234);
   font-size: clamp(16px, 1.35vw, 20px);
   letter-spacing: -0.02em;
   line-height: 1.72;
+  white-space: pre-wrap;
+}
+
+.profile-intro-about-char {
+  opacity: 0.3;
 }
 
 .profile-intro-tags {
@@ -1115,6 +1139,15 @@ img {
 
 .profile-intro-visual {
   isolation: isolate;
+  transform-style: preserve-3d;
+  transition: box-shadow 320ms ease;
+  will-change: transform;
+}
+
+.profile-intro-visual:hover {
+  box-shadow:
+    0 30px 74px rgba(0, 0, 0, 0.42),
+    0 0 42px rgba(143, 232, 255, 0.12);
 }
 
 .profile-intro-visual::after {
@@ -1126,12 +1159,49 @@ img {
   pointer-events: none;
 }
 
-.profile-intro-visual > img {
+.profile-photo-gallery {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  perspective: 1100px;
+}
+
+.profile-photo-gallery-control,
+.profile-photo-gallery-flipper {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.profile-photo-gallery-control {
+  cursor: pointer;
+  outline: none;
+}
+
+.profile-photo-gallery-control:focus-visible {
+  box-shadow: 0 0 0 2px var(--theme-focus-ring) inset;
+}
+
+.profile-photo-gallery-flipper {
+  position: relative;
+  will-change: transform;
+}
+
+.profile-photo-gallery-image {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 30%;
+  backface-visibility: hidden;
   filter: saturate(0.86) contrast(1.04);
+  pointer-events: none;
+  user-select: none;
+  -webkit-backface-visibility: hidden;
+}
+
+.profile-photo-gallery-back {
+  transform: rotateY(180deg);
 }
 
 .profile-intro-orbit,
@@ -1752,6 +1822,17 @@ img {
     grid-template-columns: 1fr;
   }
 
+  .profile-intro-impact {
+    top: 50%;
+    right: 18%;
+    bottom: auto;
+    left: 18%;
+    width: auto;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(143, 232, 255, 0.96) 42%, rgba(125, 92, 255, 0.96) 58%, transparent);
+    transform: translateY(-50%);
+  }
+
   .profile-intro-pane {
     min-height: 560px;
   }
@@ -1989,7 +2070,9 @@ img {
   .project-card,
   .project-card-media,
   .project-card-media img,
-  .profile-intro-visual img,
+  .profile-photo-gallery,
+  .profile-photo-gallery-control,
+  .profile-photo-gallery-flipper,
   .experience-card-art,
   .contact-section-bg,
   .detail-showcase-image,

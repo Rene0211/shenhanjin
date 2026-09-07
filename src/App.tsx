@@ -9,16 +9,21 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { PageTransitionLayer, type TransitionRequest } from "./components/PageTransitionLayer";
+import { ProfileFlipGallery, type ProfileGalleryImage } from "./components/ProfileFlipGallery";
 import RadialRevealButton from "./components/originkit/ui/radial-reveal-button";
 import { education, experiences, profile, projects, type Project } from "./data/portfolio";
 import { gsap, motionDuration, motionEase, motionValue, prefersReducedMotion, useGSAP } from "./lib/gsap";
 import {
+  getProfileCollisionMotion,
+  getProfileRevealToggleActions,
   getMotionMultiplier,
   getTransitionOrigin,
   shouldShowBackToTop,
   type RectLike,
 } from "./lib/motion";
+import { getProfileCardTilt } from "./lib/flipGallery";
 import { projectButtonTheme } from "./lib/projectButtonTheme";
+import { splitTextForReveal } from "./lib/textReveal";
 
 type Page = "home" | "detail";
 
@@ -41,6 +46,13 @@ const navItems = [
   { label: "介绍", anchor: "about" },
   { label: "作品", anchor: "featured-projects" },
   { label: "联系", anchor: "contact" },
+];
+
+const profileGalleryImages: ProfileGalleryImage[] = [
+  { src: "/assets/profile-gallery-01.jpg", alt: "沈涵今在书店阅读", objectPosition: "66% 50%" },
+  { src: "/assets/profile-gallery-02.jpg", alt: "沈涵今在海边", objectPosition: "54% 50%" },
+  { src: "/assets/profile-gallery-03.jpg", alt: "沈涵今在公园", objectPosition: "50% 52%" },
+  { src: "/assets/profile-gallery-04.jpg", alt: "沈涵今的个人照片", objectPosition: "50% 30%" },
 ];
 
 const pushDetailImages = Array.from({ length: 17 }, (_, index) => {
@@ -851,28 +863,202 @@ function CursorTrail() {
 function HomePage({ onOpenProject }: { onOpenProject: (project: ProjectSlot, sourceRect: RectLike) => void }) {
   const featured = useMemo(() => normalizeSlots(2), []);
   const homeRef = useRef<HTMLElement>(null);
+  const profileVisualRef = useRef<HTMLElement>(null);
+
+  useGSAP(() => {
+    const card = profileVisualRef.current;
+    if (!card) return;
+
+    const media = gsap.matchMedia();
+    media.add(
+      {
+        finePointer: "(hover: hover) and (pointer: fine)",
+        reduceMotion: "(prefers-reduced-motion: reduce)",
+      },
+      (context) => {
+        const { finePointer, reduceMotion } = context.conditions as {
+          finePointer: boolean;
+          reduceMotion: boolean;
+        };
+        if (!finePointer || reduceMotion) return;
+
+        const rotateXTo = gsap.quickTo(card, "rotationX", { duration: 0.24, ease: "power3.out" });
+        const rotateYTo = gsap.quickTo(card, "rotationY", { duration: 0.24, ease: "power3.out" });
+        let cardBounds = card.getBoundingClientRect();
+
+        const handlePointerMove = (event: PointerEvent) => {
+          const tilt = getProfileCardTilt(cardBounds, event, 8);
+          rotateXTo(tilt.rotationX);
+          rotateYTo(tilt.rotationY);
+        };
+        const handlePointerEnter = () => {
+          cardBounds = card.getBoundingClientRect();
+        };
+        const handlePointerLeave = () => {
+          rotateXTo(0);
+          rotateYTo(0);
+        };
+
+        card.addEventListener("pointerenter", handlePointerEnter);
+        card.addEventListener("pointermove", handlePointerMove);
+        card.addEventListener("pointerleave", handlePointerLeave);
+
+        return () => {
+          card.removeEventListener("pointerenter", handlePointerEnter);
+          card.removeEventListener("pointermove", handlePointerMove);
+          card.removeEventListener("pointerleave", handlePointerLeave);
+        };
+      },
+    );
+
+    return () => media.revert();
+  }, { scope: homeRef });
 
   useGSAP(() => {
     const revealTargets =
-      "#about .profile-intro-kicker, #about .profile-intro-title, #about .profile-intro-pane, #experience .home-section-heading > *, #experience .experience-card, #featured-projects .home-section-heading > *, #featured-projects .project-card, #contact .home-section-heading > *, #contact .contact-section";
+      "#about .profile-intro-kicker, #about .profile-intro-title, #about .profile-intro-pane, #about .profile-intro-about-char, #experience .home-section-heading > *, #experience .experience-card, #featured-projects .home-section-heading > *, #featured-projects .project-card, #contact .home-section-heading > *, #contact .contact-section";
 
     if (prefersReducedMotion()) {
       gsap.set(revealTargets, {
         autoAlpha: 1,
         clearProps: "all",
       });
+      gsap.set(".profile-intro-impact", { autoAlpha: 0 });
       return;
     }
 
+    const profileCopy = homeRef.current?.querySelector<HTMLElement>(".profile-intro-copy");
+    const profileVisual = profileVisualRef.current;
+    const profileImpact = homeRef.current?.querySelector<HTMLElement>(".profile-intro-impact");
+    const introText = homeRef.current?.querySelector<HTMLElement>(".profile-intro-about");
+    const introCharacters = gsap.utils.toArray<HTMLElement>(".profile-intro-about-char");
+
+    if (profileCopy && profileVisual && profileImpact && introText) {
+      const collision = getProfileCollisionMotion(window.innerWidth);
+      const [copyContact, visualContact] = collision.contact;
+      const [copyRebound, visualRebound] = collision.rebound;
+      const impactScale = collision.impactScale;
+      const resetProfileCollision = () => {
+        gsap.set(profileCopy, { ...collision.first, autoAlpha: 0, scale: 0.96 });
+        gsap.set(profileVisual, { ...collision.second, autoAlpha: 0, scale: 0.96 });
+        gsap.set(profileImpact, { autoAlpha: 0, [impactScale]: 0.08 });
+      };
+      const profileTimeline = gsap.timeline({
+        defaults: { overwrite: "auto" },
+        scrollTrigger: {
+          trigger: "#about",
+          start: "top 78%",
+          toggleActions: getProfileRevealToggleActions(),
+          onLeaveBack: resetProfileCollision,
+        },
+      });
+
+      profileTimeline
+        .addLabel("approach")
+        .fromTo(
+          profileCopy,
+          { ...collision.first, autoAlpha: 0, scale: 0.96 },
+          { ...copyContact, autoAlpha: 1, scale: 1, duration: 0.78, ease: "power3.inOut" },
+          "approach",
+        )
+        .fromTo(
+          profileVisual,
+          { ...collision.second, autoAlpha: 0, scale: 0.96 },
+          { ...visualContact, autoAlpha: 1, scale: 1, duration: 0.78, ease: "power3.inOut" },
+          "approach",
+        )
+        .addLabel("impact", "approach+=0.68")
+        .to(profileCopy, {
+          ...copyRebound,
+          scale: 0.985,
+          duration: 0.14,
+          ease: "power2.out",
+        }, "impact")
+        .to(profileVisual, {
+          ...visualRebound,
+          scale: 0.985,
+          duration: 0.14,
+          ease: "power2.out",
+        }, "impact")
+        .fromTo(
+          profileImpact,
+          { autoAlpha: 0, [impactScale]: 0.08 },
+          { autoAlpha: 0.92, [impactScale]: 1, duration: 0.16, ease: "power2.out" },
+          "impact",
+        )
+        .to(profileImpact, {
+          autoAlpha: 0,
+          [impactScale]: 1.42,
+          duration: 0.3,
+          ease: "power2.out",
+        }, "impact+=0.14")
+        .to(profileCopy, {
+          xPercent: 0,
+          yPercent: 0,
+          rotation: 0,
+          scale: 1,
+          duration: 0.44,
+          ease: "back.out(2.1)",
+          clearProps: "opacity,visibility,transform",
+        }, "impact+=0.11")
+        .to(profileVisual, {
+          xPercent: 0,
+          yPercent: 0,
+          rotation: 0,
+          scale: 1,
+          duration: 0.44,
+          ease: "back.out(2.1)",
+          clearProps: "opacity,visibility,transform",
+        }, "impact+=0.11")
+        .addLabel("content", "impact+=0.3")
+        .from("#about .profile-intro-kicker", {
+          autoAlpha: 0,
+          y: 10,
+          duration: 0.34,
+          clearProps: "opacity,visibility,transform",
+        }, "content")
+        .from("#about .profile-intro-title", {
+          autoAlpha: 0,
+          y: 24,
+          clipPath: "inset(0 0 100% 0)",
+          duration: 0.62,
+          ease: motionEase.standard,
+          clearProps: "opacity,visibility,transform,clip-path",
+        }, "content+=0.06")
+        .from(introText, {
+          autoAlpha: 0,
+          y: 12,
+          duration: 0.38,
+          clearProps: "opacity,visibility,transform",
+        }, "content+=0.16")
+        .from("#about .profile-intro-tags", {
+          autoAlpha: 0,
+          y: 12,
+          duration: 0.38,
+          clearProps: "opacity,visibility,transform",
+        }, "content+=0.3")
+        .from("#about .profile-photo-gallery", {
+          autoAlpha: 0,
+          scale: 1.035,
+          duration: 0.58,
+          ease: motionEase.standard,
+          clearProps: "opacity,visibility,transform",
+        }, "content")
+        .from("#about .profile-intro-facts", {
+          autoAlpha: 0,
+          y: 14,
+          duration: 0.42,
+          clearProps: "opacity,visibility,transform",
+        }, "content+=0.2")
+        .to(introCharacters, {
+          opacity: 1,
+          duration: 0.42,
+          ease: "power1.out",
+          stagger: { each: 0.028, from: "start" },
+        }, "content+=0.26");
+    }
+
     const revealSections = [
-      {
-        trigger: "#about",
-        eyebrow: "#about .profile-intro-kicker",
-        title: "#about .profile-intro-title",
-        media: "#about .profile-intro-visual",
-        copy: "#about .profile-intro-about, #about .profile-intro-tags, #about .profile-intro-facts",
-        stagger: 0.1,
-      },
       {
         trigger: "#experience",
         eyebrow: "#experience .home-section-heading p",
@@ -950,7 +1136,6 @@ function HomePage({ onOpenProject }: { onOpenProject: (project: ProjectSlot, sou
     });
 
     const parallaxTargets = [
-      ["#about .profile-intro-visual img", "#about"],
       ["#experience .experience-card-art", "#experience"],
       ["#featured-projects .project-card-media", "#featured-projects"],
       ["#contact .contact-section-bg", "#contact"],
@@ -974,24 +1159,31 @@ function HomePage({ onOpenProject }: { onOpenProject: (project: ProjectSlot, sou
     <main ref={homeRef}>
       <section className="profile-intro-section" id="about" aria-labelledby="about-title">
         <div className="profile-intro-layout">
+          <span className="profile-intro-impact" aria-hidden="true" />
           <article className="profile-intro-pane profile-intro-copy">
             <p className="profile-intro-kicker">ABOUT ME / UX DESIGNER</p>
             <h2 className="profile-intro-title" id="about-title">
               <span>{profile.name}</span>
               <span>{profile.role}</span>
             </h2>
-            <p className="profile-intro-about">{profile.about}</p>
+            <p className="profile-intro-about" aria-label={profile.about}>
+              {splitTextForReveal(profile.about).map((character, index) => (
+                <span className="profile-intro-about-char" aria-hidden="true" key={`${character}-${index}`}>
+                  {character}
+                </span>
+              ))}
+            </p>
             <div className="profile-intro-tags" aria-label="个人标签">
               {profile.tags.map((tag) => <span key={tag}>{tag}</span>)}
             </div>
           </article>
 
-          <article className="profile-intro-pane profile-intro-visual">
+          <article ref={profileVisualRef} className="profile-intro-pane profile-intro-visual">
             <div className="profile-intro-orbit" aria-hidden="true">
               <span />
               <span />
             </div>
-            <img src={profile.photo} alt={`${profile.name}的个人照片`} />
+            <ProfileFlipGallery images={profileGalleryImages} />
             <div className="profile-intro-facts">
               <div><span>工作年限</span><strong>{profile.experience}</strong></div>
               <div><span>所在地</span><strong>{profile.city}</strong></div>
