@@ -7,7 +7,7 @@ import {
   Phone,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { PageTransitionLayer, type TransitionRequest } from "./components/PageTransitionLayer";
 import { ProfileFlipGallery, type ProfileGalleryImage } from "./components/ProfileFlipGallery";
 import RadialRevealButton from "./components/originkit/ui/radial-reveal-button";
@@ -22,6 +22,7 @@ import {
   type RectLike,
 } from "./lib/motion";
 import { getProfileCardTilt } from "./lib/flipGallery";
+import { createGlassRainDrops, getGlassRainDensity } from "./lib/glassRain";
 import { projectButtonTheme } from "./lib/projectButtonTheme";
 import { splitTextForReveal } from "./lib/textReveal";
 
@@ -54,6 +55,16 @@ const profileGalleryImages: ProfileGalleryImage[] = [
   { src: "/assets/profile-gallery-03.jpg", alt: "沈涵今在公园", objectPosition: "50% 52%" },
   { src: "/assets/profile-gallery-04.jpg", alt: "沈涵今的个人照片", objectPosition: "50% 30%" },
 ];
+
+const glassRainDrops = createGlassRainDrops(getGlassRainDensity(1280));
+const glassRainPanes = [
+  { pane: 0, side: "left", position: "outer" },
+  { pane: 1, side: "left", position: "door" },
+  { pane: 2, side: "right", position: "door" },
+  { pane: 3, side: "right", position: "outer" },
+] as const;
+
+type RainDropStyle = CSSProperties & Record<`--rain-${string}`, string>;
 
 const pushDetailImages = Array.from({ length: 17 }, (_, index) => {
   const order = String(index + 1).padStart(2, "0");
@@ -591,7 +602,7 @@ function CoverPage({
 
     isOpeningRef.current = false;
     isIntroReadyRef.current = hasIntroPlayedRef.current;
-    gsap.set(".cover-door-left, .cover-door-right, .cover-glass-rain, .cover-shade", { clearProps: "all" });
+    gsap.set(".cover-door-left, .cover-door-right, .cover-rain-half, .cover-glass-rain, .cover-shade", { clearProps: "all" });
     gsap.set(".cover-open-light", { autoAlpha: 0, scaleX: 0.04 });
     if (hasIntroPlayedRef.current) {
       gsap.set(".cover-kicker, .cover-title, .cover-subtitle, .cover-scroll", { autoAlpha: 1, y: 0 });
@@ -649,6 +660,22 @@ function CoverPage({
           duration: 1.05,
         },
         "<",
+      )
+      .to(
+        ".cover-rain-half-left",
+        {
+          xPercent: -104,
+          duration: 1.05,
+        },
+        "doors",
+      )
+      .to(
+        ".cover-rain-half-right",
+        {
+          xPercent: 104,
+          duration: 1.05,
+        },
+        "doors",
       )
       .addLabel("light", "doors+=0.19")
       .fromTo(
@@ -728,7 +755,29 @@ function CoverPage({
       <div className="cover-door cover-door-left" />
       <div className="cover-door cover-door-right" />
       <div className="cover-shade" />
-      <div className="cover-glass-rain" aria-hidden="true" />
+      <div className="cover-glass-rain" aria-hidden="true">
+        {(["left", "right"] as const).map((side) => (
+          <div className={`cover-rain-half cover-rain-half-${side}`} key={side}>
+            {glassRainPanes.filter((pane) => pane.side === side).map((pane) => (
+              <div className={`cover-rain-pane cover-rain-pane-${pane.position}`} key={`${pane.side}-${pane.position}`}>
+                {glassRainDrops.filter((drop) => drop.pane === pane.pane).map((drop, index) => {
+                  const style: RainDropStyle = {
+                    "--rain-x": `${drop.x}%`,
+                    "--rain-y": `${drop.y}%`,
+                    "--rain-size": `${drop.size}px`,
+                    "--rain-length": `${drop.length}px`,
+                    "--rain-duration": `${drop.duration}s`,
+                    "--rain-delay": `${drop.delay}s`,
+                    "--rain-drift": `${drop.drift}px`,
+                    "--rain-opacity": `${drop.opacity}`,
+                  };
+                  return <span className={`cover-rain-drop is-${drop.kind}`} style={style} key={`${pane.pane}-${index}`} />;
+                })}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
       <div className="cover-open-light" aria-hidden="true" />
       <div className="cover-content">
         <p className="cover-kicker">UX / INTERACTION DESIGN PORTFOLIO</p>

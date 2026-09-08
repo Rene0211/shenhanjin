@@ -244,36 +244,91 @@ img {
   position: absolute;
   inset: 0;
   z-index: -1;
-  opacity: 0.36;
-  mix-blend-mode: screen;
+  opacity: 0.72;
   pointer-events: none;
 }
 
-.cover-glass-rain::before,
-.cover-glass-rain::after {
+.cover-rain-half {
   position: absolute;
-  inset: -18% 0;
-  background-repeat: repeat;
-  content: "";
+  top: -6%;
+  bottom: -6%;
+  width: 50.2%;
   will-change: transform;
 }
 
-.cover-glass-rain::before {
-  background-image:
-    linear-gradient(180deg, transparent 0 18%, rgba(246, 251, 255, 0.14) 20%, transparent 33%),
-    linear-gradient(180deg, transparent 0 58%, rgba(160, 136, 255, 0.12) 61%, transparent 72%);
-  background-size: 84px 210px, 116px 280px;
-  filter: blur(0.35px);
-  animation: cover-glass-rain-slide 4.8s linear infinite;
+.cover-rain-half-left {
+  left: -0.1%;
 }
 
-.cover-glass-rain::after {
-  background-image:
-    radial-gradient(ellipse at center, rgba(246, 251, 255, 0.22) 0 1px, transparent 2px),
-    radial-gradient(ellipse at center, rgba(143, 232, 255, 0.16) 0 1px, transparent 2px);
-  background-size: 96px 142px, 148px 216px;
-  opacity: 0.62;
-  animation: cover-glass-droplets-slide 7.2s linear infinite;
+.cover-rain-half-right {
+  right: -0.1%;
+}
+
+.cover-rain-pane {
+  position: absolute;
+  top: 10.5%;
+  height: 54%;
+  overflow: hidden;
+  filter: drop-shadow(0 0 9px rgba(143, 232, 255, 0.08));
+  mix-blend-mode: screen;
+}
+
+.cover-rain-half-left .cover-rain-pane-outer,
+.cover-rain-half-right .cover-rain-pane-outer {
+  width: 39%;
+}
+
+.cover-rain-half-left .cover-rain-pane-outer {
+  left: 0;
+  border-radius: 0 44px 44px 0;
+}
+
+.cover-rain-half-right .cover-rain-pane-outer {
+  right: 0;
+  border-radius: 44px 0 0 44px;
+}
+
+.cover-rain-half-left .cover-rain-pane-door,
+.cover-rain-half-right .cover-rain-pane-door {
+  width: 29.5%;
+  border-radius: 66px 66px 54px 54px;
+}
+
+.cover-rain-half-left .cover-rain-pane-door {
+  left: 64.5%;
+}
+
+.cover-rain-half-right .cover-rain-pane-door {
+  right: 64.5%;
+}
+
+.cover-rain-drop {
+  position: absolute;
+  top: var(--rain-y);
+  left: var(--rain-x);
+  display: block;
+  width: var(--rain-size);
+  opacity: var(--rain-opacity);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.cover-rain-drop.is-bead {
+  height: var(--rain-size);
+  border: 1px solid rgba(238, 250, 255, 0.34);
+  border-radius: 50% 50% 48% 52%;
+  background: radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.82), rgba(151, 218, 241, 0.2) 38%, rgba(17, 30, 50, 0.14) 68%, transparent 72%);
+  box-shadow: inset -1px -2px 3px rgba(10, 20, 37, 0.28), 0 1px 3px rgba(184, 232, 255, 0.22);
+  animation: cover-glass-bead-creep var(--rain-duration) ease-in infinite var(--rain-delay);
+}
+
+.cover-rain-drop.is-trail {
+  height: var(--rain-length);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(247, 252, 255, 0.76), rgba(151, 218, 241, 0.28) 18%, rgba(151, 218, 241, 0.06) 72%, transparent);
+  box-shadow: 0 0 4px rgba(188, 233, 255, 0.2);
+  transform-origin: center top;
+  animation: cover-glass-drop-slide var(--rain-duration) cubic-bezier(0.42, 0, 0.74, 0.56) infinite var(--rain-delay);
 }
 
 .cover-open-light {
@@ -294,23 +349,37 @@ img {
   will-change: transform, opacity;
 }
 
-@keyframes cover-glass-rain-slide {
-  from {
-    transform: translate3d(0, -110px, 0);
+@keyframes cover-glass-drop-slide {
+  0%, 12% {
+    opacity: 0;
+    transform: translate3d(0, -12vh, 0) scaleY(0.22);
   }
 
-  to {
-    transform: translate3d(0, 110px, 0);
+  18% {
+    opacity: var(--rain-opacity);
+  }
+
+  72% {
+    opacity: calc(var(--rain-opacity) * 0.8);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--rain-drift), 58vh, 0) scaleY(1.08);
   }
 }
 
-@keyframes cover-glass-droplets-slide {
-  from {
-    transform: translate3d(0, -84px, 0);
+@keyframes cover-glass-bead-creep {
+  0%, 58% {
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
-  to {
-    transform: translate3d(0, 84px, 0);
+  68% {
+    transform: translate3d(0, 3px, 0) scale(0.96, 1.18);
+  }
+
+  100% {
+    transform: translate3d(var(--rain-drift), 32px, 0) scale(0.82, 1.24);
   }
 }
 
@@ -1814,6 +1883,10 @@ img {
     padding: var(--spacing-16);
   }
 
+  .cover-rain-drop:nth-child(n + 8) {
+    display: none;
+  }
+
   .overview-grid,
   .summary-content,
   .two-column-detail,
@@ -2030,6 +2103,14 @@ img {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .cover-rain-drop.is-trail {
+    display: none;
+  }
+
+  .cover-rain-drop.is-bead {
+    animation: none !important;
   }
 
   *,
