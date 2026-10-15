@@ -77,7 +77,7 @@ export const projects: Project[] = [
     type: "UX设计",
     time: "2026",
     summary:
-      "参与“晒单小红书”项目从0-1的搭建，包括前期调研，需求定义，担任全部交互原型图，以及部分UI设计输出，上线后跟进数据，进行多次迭代，数据均有显著提升。",
+      "参与「晒单小红书」从0到1建设，负责前期调研、需求定义与完整交互设计，协同完成部分UI，并跟进上线后的多轮迭代。",
     images: ["/assets/project-push-cover.png", "/assets/project-push-cover.png", "/assets/project-push-cover.png"],
   },
   {
@@ -86,7 +86,7 @@ export const projects: Project[] = [
     type: "交互设计",
     time: "2024",
     summary:
-      "与产品一起参与需求输出，提出多个创新idea落地并带来显著增量；核心参与2次战略级大规模改版，重构全局交互架构与视觉层级，并独立梳理交互沉淀",
+      "参与需求共创与创新方案落地；核心参与两次战略改版，重构全局交互架构与视觉层级，并沉淀业务交互规范。",
     images: ["/assets/project-garden-cover.png", "/assets/project-garden-cover.png", "/assets/project-garden-cover.png"],
   },
 ];

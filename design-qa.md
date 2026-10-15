@@ -85,3 +85,48 @@ Final result: passed
 - Verified disabled state for placeholder project case buttons.
 - Verified no horizontal overflow at a 560px-wide viewport.
 - Verified detail page back action is visible after page transition.
+
+## 2026-10-14 Newspaper dossier redesign
+
+- Source visuals: `/var/folders/xb/650bhs5n2fs_9jwjbgfx2hhw0000gn/T/codex-clipboard-d97d8a5b-47d0-43d8-86b0-bdfb17f03743.png` (paper dossier layout) and `/var/folders/xb/650bhs5n2fs_9jwjbgfx2hhw0000gn/T/codex-clipboard-9ea9b35d-73bd-48c7-bace-79436272f2ea.png` (profile and experience content).
+- Implementation: `http://127.0.0.1:5173/`, captured in Codex In-app Browser with CUA. The browser tool displayed the screenshot inline but did not expose a filesystem screenshot path.
+- Viewport: 1365 × 768 CSS px; implementation capture was 1365 × 768 pixels. The first source is also 1365 × 768; the second source is 1412 × 774. No density normalization was applied; the device scale factor is not exposed by the browser capture API.
+- State: home content entered and settled at the top of the About / Experience dossier. Header visible; paper spread shows the profile, contact information, three experience entries, and the beginning of the works section below.
+- Full-view comparison: opened both references and the implementation capture together in one CUA comparison output. The implementation uses one continuous paper sheet, a left profile column, and a right work-history timeline, with the dark navigation and surrounding frame preserved.
+- Focused-region comparison: the portrait, identity/contact rows, timeline dates, and case descriptions were legible in the full desktop capture; the accessibility tree confirmed the phone, email, experience dates, and all experience copy. No separate crop was needed.
+- Fidelity surfaces: bold bilingual headings and smaller editorial body copy retain the references' hierarchy; the two-column rhythm and paper margins fit the desktop view; warm paper, ink, and muted yellow accents match the references; the existing profile photo is used with a centered circular crop; the copy follows the second reference.
+- Interaction: two separate upward gestures were checked at the top of the dossier. The first left the dossier in view; the second returned to the cover. At 390 × 844, the profile and timeline stack vertically.
+- Build: `pnpm run build` completed successfully. No automated tests were added or run.
+
+### Comparison history
+
+- First visual pass found two P2 issues: the small repeating paper crop created a visible seam, and the lower contact row sat too close to the desktop viewport edge.
+- Fixes: replaced the tiled texture with a single larger crop from the supplied paper reference and tightened the photo, column padding, and contact-row spacing.
+- Post-fix visual evidence: the final 1365 × 768 capture shows one unbroken paper surface with the complete contact block and the full timeline in view. No actionable P0, P1, or P2 findings remain.
+
+### Follow-up polish
+
+- P3: the source has dimensional folded edges and a clipped badge; the implementation keeps a flatter printed-paper treatment and a circular portrait to preserve the second reference's content layout.
+
+final result: passed
+
+### 2026-10-14 draggable ID badge follow-up
+
+- Restored the reference's hanging ID card treatment on the left side of the newspaper dossier, with a lanyard, metal clip, photo, welcome label, and nameplate.
+- Removed phone and email from the badge; the existing dedicated contact section remains elsewhere on the site.
+- Added a slow idle sway and pointer drag with elastic return on release. Existing two-upward-gesture return behavior remains in place.
+- Verification: `pnpm run build` completed successfully. The in-app browser accessibility tree confirms the badge and profile content render. The attached MOV could not be opened in QuickTime from the available file dialog, so this pass follows the still reference image.
+
+### 2026-10-14 browser comment refinements
+
+- Removed the rounded glass panel from the fixed top navigation while keeping its placement and active underline.
+- Simplified the badge to a paper/ink treatment with a smaller photo card, and made “3年电商 UX 设计经验” the strongest badge label.
+- Promoted “Push业务渠道组（1年半）” and “多乐趣组（1年半）” as work group headings; project titles now sit below them. The Push group uses 15px Arial as requested.
+- Reduced dossier minimum height and timeline gaps to use the paper spread more evenly.
+- Verification: `pnpm run build` and `git diff --check` passed. Opened the refreshed preview; animated entrance content was still settling in the initial accessibility snapshot.
+
+### 2026-10-14 pull-out tether refinement
+
+- Changed the card interaction from moving the whole lanyard to pulling only the badge body downward. A fixed top anchor and curved tether extend as the badge is pulled, up to 250px; release retracts the tether and badge together with an elastic return.
+- Matched the Push group heading to the same typography used by the 多乐趣 group and softened the badge nameplate outline.
+- Verification: `pnpm run build` and `git diff --check` passed. Refreshed preview accessibility confirms the group headings and pull-down badge render.

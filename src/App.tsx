@@ -2,29 +2,25 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Check,
+  Copy,
   Mail,
-  MapPin,
   Phone,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { PageTransitionLayer, type TransitionRequest } from "./components/PageTransitionLayer";
-import { ProfileFlipGallery, type ProfileGalleryImage } from "./components/ProfileFlipGallery";
 import RadialRevealButton from "./components/originkit/ui/radial-reveal-button";
-import { education, experiences, profile, projects, type Project } from "./data/portfolio";
-import { gsap, motionDuration, motionEase, motionValue, prefersReducedMotion, useGSAP } from "./lib/gsap";
+import { experiences, profile, projects, type Project } from "./data/portfolio";
+import { gsap, motionDuration, motionEase, motionValue, prefersReducedMotion, ScrollTrigger, useGSAP } from "./lib/gsap";
 import {
-  getProfileCollisionMotion,
-  getProfileRevealToggleActions,
   getMotionMultiplier,
   getTransitionOrigin,
   shouldShowBackToTop,
   type RectLike,
 } from "./lib/motion";
-import { getProfileCardTilt } from "./lib/flipGallery";
 import { createGlassRainDrops, getGlassRainDensity } from "./lib/glassRain";
 import { projectButtonTheme } from "./lib/projectButtonTheme";
-import { splitTextForReveal } from "./lib/textReveal";
 
 type Page = "home" | "detail";
 
@@ -47,13 +43,6 @@ const navItems = [
   { label: "介绍", anchor: "about" },
   { label: "作品", anchor: "featured-projects" },
   { label: "联系", anchor: "contact" },
-];
-
-const profileGalleryImages: ProfileGalleryImage[] = [
-  { src: "/assets/profile-gallery-01.jpg", alt: "沈涵今在书店阅读", objectPosition: "66% 50%" },
-  { src: "/assets/profile-gallery-02.jpg", alt: "沈涵今在海边", objectPosition: "54% 50%" },
-  { src: "/assets/profile-gallery-03.jpg", alt: "沈涵今在公园", objectPosition: "50% 52%" },
-  { src: "/assets/profile-gallery-04.jpg", alt: "沈涵今的个人照片", objectPosition: "50% 30%" },
 ];
 
 const glassRainDrops = createGlassRainDrops(getGlassRainDensity(1280));
@@ -278,7 +267,7 @@ function ProjectCard({
       <div className="project-card-copy">
         <p className="project-card-eyebrow">SELECTED WORK / {String(index + 1).padStart(2, "0")}</p>
         <h3>{project.name}</h3>
-        <p className="project-role">担任角色：{project.type}</p>
+        <p className="project-role">{project.type}</p>
         {project.placeholder ? (
           <div className="copy-lines" aria-hidden="true">
             <span />
@@ -338,6 +327,55 @@ function ProjectCard({
 }
 
 function ContactSection() {
+  const [copied, setCopied] = useState<"电话" | "邮箱" | null>(null);
+  const [copyError, setCopyError] = useState<"电话" | "邮箱" | null>(null);
+  const [activeContact, setActiveContact] = useState<"phone" | "email" | null>(null);
+  const [mailboxOpen, setMailboxOpen] = useState(false);
+  const [phoneBoothOpen, setPhoneBoothOpen] = useState(false);
+  const feedbackTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
+  }, []);
+
+  const copyContact = async (label: "电话" | "邮箱", value: string) => {
+    let didCopy = false;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+      await navigator.clipboard.writeText(value);
+      didCopy = true;
+    } catch {
+      const previousFocus = document.activeElement;
+      const field = document.createElement("textarea");
+      field.value = value;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      field.style.pointerEvents = "none";
+      document.body.append(field);
+      field.select();
+      try {
+        didCopy = document.execCommand("copy");
+      } catch {
+        didCopy = false;
+      } finally {
+        field.remove();
+        if (previousFocus instanceof HTMLElement) previousFocus.focus({ preventScroll: true });
+      }
+    }
+
+    setCopyError(didCopy ? null : label);
+    setCopied(didCopy ? label : null);
+    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = window.setTimeout(() => {
+      setCopied(null);
+      setCopyError(null);
+      feedbackTimer.current = null;
+    }, 2200);
+  };
+
+  const setContactActive = (contact: "phone" | "email") => () => setActiveContact(contact);
+
   return (
     <section className="contact-block" id="contact" aria-labelledby="contact-title">
       <HomeSectionHeading eyebrow="CONTACT / CONNECT" title="联系方式" id="contact-title" />
@@ -345,7 +383,124 @@ function ContactSection() {
         <img className="contact-section-bg" src="/assets/portfolio-cover-bg-v2.png" alt="" aria-hidden="true" />
         <div className="contact-section-shade" aria-hidden="true" />
         <div className="contact-section-content">
-          <ContactRows />
+          <div
+            className="contact-rows"
+            data-active={activeContact ?? ""}
+            data-mailbox-open={mailboxOpen}
+            data-phone-open={phoneBoothOpen}
+            onPointerLeave={() => setActiveContact(null)}
+            onFocusCapture={(event) => {
+              const target = event.target as HTMLElement;
+              if (target.closest(".contact-email-card, .contact-mailbox-trigger")) setActiveContact("email");
+              if (target.closest(".contact-phone-card, .contact-phone-trigger")) setActiveContact("phone");
+            }}
+            onBlurCapture={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveContact(null);
+            }}
+          >
+            <div
+              className="contact-copy-card contact-copy-card--email contact-email-card"
+              onPointerEnter={setContactActive("email")}
+            >
+              <span className="contact-card-symbol"><Mail aria-hidden="true" size={22} /></span>
+              <div className="contact-card-copy" id="contact-email-details">
+                <span className="contact-card-eyebrow">EMAIL / 邮箱</span>
+                <button
+                  className="contact-address contact-email-address"
+                  type="button"
+                  onClick={() => copyContact("邮箱", profile.contact.email)}
+                  aria-label={`复制邮箱：${profile.contact.email}`}
+                  title="点击复制邮箱地址"
+                >
+                  {profile.contact.email}
+                </button>
+                <span className="contact-card-actions">
+                  <button
+                    className="contact-card-action"
+                    type="button"
+                    onClick={() => copyContact("邮箱", profile.contact.email)}
+                  >
+                    <Copy aria-hidden="true" size={13} /> 复制邮箱
+                  </button>
+                </span>
+                <span className="contact-copy-status" role="status" aria-live="polite">
+                  {copied === "邮箱" ? <><Check aria-hidden="true" size={14} /> 邮箱已复制</> : null}
+                  {copyError === "邮箱" ? "复制失败，请选中邮箱文本后手动复制" : null}
+                </span>
+              </div>
+            </div>
+
+            <div className="contact-art" role="group" aria-label="红色电话亭与信箱">
+              <span className="contact-art-extended-backdrop" aria-hidden="true" />
+              <img className="contact-art-image" src="/assets/contact/telephone-scene-generated.png" alt="" aria-hidden="true" />
+              <span className="contact-phone-light" aria-hidden="true" />
+              <span className="contact-letter" aria-hidden="true" />
+              <span className="contact-door-image contact-phone-opening" aria-hidden="true" />
+              <span className="contact-door-image contact-phone-door" aria-hidden="true" />
+              <button
+                className="contact-phone-trigger"
+                type="button"
+                aria-label={phoneBoothOpen ? "关闭电话亭门" : "打开电话亭并查看电话号码"}
+                aria-expanded={phoneBoothOpen}
+                aria-controls="contact-phone-details"
+                onClick={() => {
+                  setPhoneBoothOpen((open) => {
+                    const nextOpen = !open;
+                    if (nextOpen) setMailboxOpen(false);
+                    return nextOpen;
+                  });
+                  setActiveContact("phone");
+                }}
+                onPointerEnter={setContactActive("phone")}
+              />
+              <button
+                className="contact-mailbox-trigger"
+                type="button"
+                aria-label={mailboxOpen ? "收起信封" : "显示信封并查看邮箱地址"}
+                aria-expanded={mailboxOpen}
+                aria-controls="contact-email-details"
+                onClick={() => {
+                  setMailboxOpen((open) => {
+                    const nextOpen = !open;
+                    if (nextOpen) setPhoneBoothOpen(false);
+                    return nextOpen;
+                  });
+                  setActiveContact("email");
+                }}
+              onPointerEnter={setContactActive("email")}
+              />
+            </div>
+
+            <div
+              className="contact-copy-card contact-copy-card--phone contact-phone-card"
+              onPointerEnter={setContactActive("phone")}
+            >
+              <span className="contact-card-symbol"><Phone aria-hidden="true" size={22} /></span>
+              <div className="contact-card-copy" id="contact-phone-details">
+                <span className="contact-card-eyebrow">PHONE / 电话 / 微信</span>
+                <button
+                  className="contact-address contact-phone-address"
+                  type="button"
+                  onClick={() => copyContact("电话", profile.contact.phone)}
+                  aria-label={`复制电话号码：${profile.contact.phone}`}
+                  title="点击复制电话号码"
+                >
+                  {profile.contact.phone}
+                </button>
+                <button
+                  className="contact-card-action"
+                  type="button"
+                  onClick={() => copyContact("电话", profile.contact.phone)}
+                >
+                  <Copy aria-hidden="true" size={13} /> 复制电话
+                </button>
+                <span className="contact-copy-status" role="status" aria-live="polite">
+                  {copied === "电话" ? <><Check aria-hidden="true" size={14} /> 电话已复制</> : null}
+                  {copyError === "电话" ? "复制失败，请手动选择号码" : null}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -394,50 +549,6 @@ function ExperienceCard({
   );
 }
 
-function ContactRows() {
-  const [copied, setCopied] = useState<string | null>(null);
-  const rows = [
-    { icon: Mail, label: "邮箱", value: profile.contact.email, copyValue: profile.contact.email },
-    { icon: Phone, label: "电话", value: `${profile.contact.phone}（同微信）`, copyValue: profile.contact.phone },
-    { icon: MapPin, label: "所在地", value: profile.city },
-  ];
-
-  const copyContact = async (label: string, value?: string) => {
-    if (!value) return;
-    await navigator.clipboard.writeText(value);
-    setCopied(label);
-    window.setTimeout(() => setCopied(null), 1600);
-  };
-
-  return (
-    <div className="contact-rows">
-      {rows.map(({ icon: Icon, label, value, copyValue }) => {
-        const content = (
-          <>
-            <Icon aria-hidden="true" size={18} />
-            <span>{value}</span>
-            {copied === label ? <em>已复制</em> : null}
-          </>
-        );
-        return copyValue ? (
-          <button
-            key={label}
-            type="button"
-            onClick={() => copyContact(label, copyValue)}
-            aria-label={`复制${label}：${value}`}
-          >
-            {content}
-          </button>
-        ) : (
-          <p key={label} aria-label={`${label}：${value}`}>
-            {content}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
 function CoverPage({
   isEntered,
   onIntroReady,
@@ -451,7 +562,9 @@ function CoverPage({
   const isOpeningRef = useRef(false);
   const isIntroReadyRef = useRef(false);
   const hasIntroPlayedRef = useRef(false);
+  const isEnteredRef = useRef(isEntered);
   const gestureTouchStartYRef = useRef<number | null>(null);
+  isEnteredRef.current = isEntered;
 
   const { contextSafe } = useGSAP((_, contextSafeInside) => {
     if (prefersReducedMotion()) {
@@ -483,7 +596,12 @@ function CoverPage({
         onComplete: () => {
           isIntroReadyRef.current = true;
           hasIntroPlayedRef.current = true;
-          arrowBounce.play();
+          if (isEnteredRef.current) {
+            arrowBounce.pause();
+            gsap.set(".cover-scroll", { autoAlpha: 0 });
+          } else {
+            arrowBounce.play();
+          }
           onIntroReady();
         },
       })
@@ -598,14 +716,27 @@ function CoverPage({
   }, { scope: coverRef });
 
   useEffect(() => {
-    if (isEntered) return;
+    if (isEntered) {
+      gsap.set(".cover-scroll", { autoAlpha: 0 });
+      return;
+    }
 
     isOpeningRef.current = false;
     isIntroReadyRef.current = hasIntroPlayedRef.current;
     gsap.set(".cover-door-left, .cover-door-right, .cover-rain-half, .cover-glass-rain, .cover-shade", { clearProps: "all" });
+    gsap.set(".cover-bg", { autoAlpha: 0.4, xPercent: 0, yPercent: 0, scale: 1 });
+    gsap.set(".cover-door-left, .cover-door-right, .cover-shade", { autoAlpha: 1, xPercent: 0 });
+    gsap.set(".cover-rain-half", { autoAlpha: 1, xPercent: 0 });
+    gsap.set(".cover-glass-rain", { autoAlpha: 0.72 });
     gsap.set(".cover-open-light", { autoAlpha: 0, scaleX: 0.04 });
     if (hasIntroPlayedRef.current) {
-      gsap.set(".cover-kicker, .cover-title, .cover-subtitle, .cover-scroll", { autoAlpha: 1, y: 0 });
+      gsap.set(".cover-kicker, .cover-title, .cover-subtitle, .cover-scroll", {
+        autoAlpha: 1,
+        x: 0,
+        y: 0,
+        scale: 1,
+        clearProps: "transform",
+      });
       onIntroReady();
     }
   }, [isEntered]);
@@ -731,7 +862,7 @@ function CoverPage({
   return (
     <section
       ref={coverRef}
-      className="cover-section"
+      className={`cover-section ${isEntered ? "is-entered" : ""}`}
       aria-label="作品集视觉封面"
       onWheel={(event) => {
         if (event.deltaY > 16) scrollToContent();
@@ -912,210 +1043,217 @@ function CursorTrail() {
 function HomePage({ onOpenProject }: { onOpenProject: (project: ProjectSlot, sourceRect: RectLike) => void }) {
   const featured = useMemo(() => normalizeSlots(2), []);
   const homeRef = useRef<HTMLElement>(null);
-  const profileVisualRef = useRef<HTMLElement>(null);
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const badgeTetherRef = useRef<SVGSVGElement>(null);
+  const badgeTetherPathRef = useRef<SVGPathElement>(null);
+  const badgePullRef = useRef({ x: 0, y: 0 });
+  const badgeDragRef = useRef({ active: false, startX: 0, startY: 0 });
 
-  useGSAP(() => {
-    const card = profileVisualRef.current;
-    if (!card) return;
-
-    const media = gsap.matchMedia();
-    media.add(
-      {
-        finePointer: "(hover: hover) and (pointer: fine)",
-        reduceMotion: "(prefers-reduced-motion: reduce)",
-      },
-      (context) => {
-        const { finePointer, reduceMotion } = context.conditions as {
-          finePointer: boolean;
-          reduceMotion: boolean;
-        };
-        if (!finePointer || reduceMotion) return;
-
-        const rotateXTo = gsap.quickTo(card, "rotationX", { duration: 0.24, ease: "power3.out" });
-        const rotateYTo = gsap.quickTo(card, "rotationY", { duration: 0.24, ease: "power3.out" });
-        let cardBounds = card.getBoundingClientRect();
-
-        const handlePointerMove = (event: PointerEvent) => {
-          const tilt = getProfileCardTilt(cardBounds, event, 8);
-          rotateXTo(tilt.rotationX);
-          rotateYTo(tilt.rotationY);
-        };
-        const handlePointerEnter = () => {
-          cardBounds = card.getBoundingClientRect();
-        };
-        const handlePointerLeave = () => {
-          rotateXTo(0);
-          rotateYTo(0);
-        };
-
-        card.addEventListener("pointerenter", handlePointerEnter);
-        card.addEventListener("pointermove", handlePointerMove);
-        card.addEventListener("pointerleave", handlePointerLeave);
-
-        return () => {
-          card.removeEventListener("pointerenter", handlePointerEnter);
-          card.removeEventListener("pointermove", handlePointerMove);
-          card.removeEventListener("pointerleave", handlePointerLeave);
-        };
-      },
+  const updateBadgePull = (x: number, y: number) => {
+    const pull = badgePullRef.current;
+    pull.x = gsap.utils.clamp(-54, 54, x);
+    pull.y = gsap.utils.clamp(0, 150, y);
+    const horizontal = pull.x * 0.42;
+    const length = 120 + pull.y;
+    badgeTetherRef.current?.setAttribute("height", String(length));
+    badgeTetherRef.current?.setAttribute("viewBox", `0 0 70 ${length}`);
+    badgeTetherRef.current?.style.setProperty("height", `${length}px`);
+    badgeTetherPathRef.current?.setAttribute(
+      "d",
+      `M35 80 C35 96 ${35 + horizontal * 0.2} 108 ${35 + horizontal * 0.5} ${length * 0.55} S${35 + horizontal} ${length - 22} ${35 + horizontal} ${length}`,
     );
+    if (badgeRef.current) {
+      gsap.set(badgeRef.current, { x: pull.x, y: pull.y, rotation: pull.x * 0.045 });
+    }
+  };
 
-    return () => media.revert();
-  }, { scope: homeRef });
+  const handleBadgePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    const badge = badgeRef.current;
+    if (!badge) return;
+    badgeDragRef.current = {
+      active: true,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    gsap.killTweensOf(badgePullRef.current);
+    gsap.killTweensOf(badge);
+    event.currentTarget.classList.add("is-dragging");
+  };
+
+  const handleBadgePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = badgeDragRef.current;
+    if (!badgeRef.current) return;
+    if (drag.active) {
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      updateBadgePull(dx, dy);
+      return;
+    }
+
+    const badgeCard = event.currentTarget.querySelector<HTMLElement>(".badge-card");
+    if (!badgeCard || !(event.target instanceof Element) || !event.target.closest(".badge-card")) {
+      if (badgeCard) {
+        badgeCard.classList.remove("is-hovering");
+        badgeCard.style.setProperty("--badge-tilt-x", "0deg");
+        badgeCard.style.setProperty("--badge-tilt-y", "0deg");
+        badgeCard.querySelectorAll<HTMLElement>(".badge-corner").forEach((corner) => {
+          corner.style.setProperty("--corner-shift-x", "0px");
+          corner.style.setProperty("--corner-shift-y", "0px");
+        });
+      }
+      return;
+    }
+
+    const bounds = badgeCard.getBoundingClientRect();
+    const pointerX = gsap.utils.clamp(-1, 1, ((event.clientX - bounds.left) / bounds.width) * 2 - 1);
+    const pointerY = gsap.utils.clamp(-1, 1, ((event.clientY - bounds.top) / bounds.height) * 2 - 1);
+    badgeCard.classList.add("is-hovering");
+    badgeCard.style.setProperty("--badge-tilt-x", `${pointerX * 3.2}deg`);
+    badgeCard.style.setProperty("--badge-tilt-y", `${pointerY * -3.2}deg`);
+    badgeCard.querySelectorAll<HTMLElement>(".badge-corner").forEach((corner) => {
+      const cornerX = corner.dataset.sideX === "right" ? 1 : -1;
+      const cornerY = corner.dataset.sideY === "bottom" ? 1 : -1;
+      const proximity = gsap.utils.clamp(0, 1, 1 - Math.hypot(pointerX - cornerX, pointerY - cornerY) / 2.2);
+      corner.style.setProperty("--corner-shift-x", `${pointerX * 5 * proximity}px`);
+      corner.style.setProperty("--corner-shift-y", `${pointerY * 5 * proximity}px`);
+    });
+  };
+
+  const resetBadgeHover = (event: React.PointerEvent<HTMLDivElement>) => {
+    const badgeCard = event.currentTarget.querySelector<HTMLElement>(".badge-card");
+    if (!badgeCard) return;
+    badgeCard.classList.remove("is-hovering");
+    badgeCard.style.setProperty("--badge-tilt-x", "0deg");
+    badgeCard.style.setProperty("--badge-tilt-y", "0deg");
+    badgeCard.querySelectorAll<HTMLElement>(".badge-corner").forEach((corner) => {
+      corner.style.setProperty("--corner-shift-x", "0px");
+      corner.style.setProperty("--corner-shift-y", "0px");
+    });
+  };
+
+  const handleBadgePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!badgeDragRef.current.active || !badgeRef.current) return;
+    badgeDragRef.current.active = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    event.currentTarget.classList.remove("is-dragging");
+    resetBadgeHover(event);
+    gsap.to(badgePullRef.current, {
+      x: 0,
+      y: 0,
+      duration: 1.25,
+      ease: "elastic.out(1, 0.42)",
+      overwrite: true,
+      onUpdate: () => updateBadgePull(badgePullRef.current.x, badgePullRef.current.y),
+    });
+  };
 
   useGSAP(() => {
     const revealTargets =
-      "#about .profile-intro-kicker, #about .profile-intro-title, #about .profile-intro-pane, #about .profile-intro-about-char, #experience .home-section-heading > *, #experience .experience-card, #featured-projects .home-section-heading > *, #featured-projects .project-card, #contact .home-section-heading > *, #contact .contact-section";
+      ".dossier-identity, .dossier-work-heading, .dossier-timeline-item, #featured-projects .home-section-heading > *, #featured-projects .project-card, #contact .home-section-heading > *, #contact .contact-section";
 
     if (prefersReducedMotion()) {
       gsap.set(revealTargets, {
         autoAlpha: 1,
         clearProps: "all",
       });
-      gsap.set(".profile-intro-impact", { autoAlpha: 0 });
       return;
     }
 
-    const profileCopy = homeRef.current?.querySelector<HTMLElement>(".profile-intro-copy");
-    const profileVisual = profileVisualRef.current;
-    const profileImpact = homeRef.current?.querySelector<HTMLElement>(".profile-intro-impact");
-    const introText = homeRef.current?.querySelector<HTMLElement>(".profile-intro-about");
-    const introCharacters = gsap.utils.toArray<HTMLElement>(".profile-intro-about-char");
+    const routeOrder = ["about", "experience", "featured-projects", "contact"];
+    const routeSteps = gsap.utils.toArray<HTMLElement>(".night-route-step");
+    const activateRoute = (section: string) => {
+      const activeIndex = routeOrder.indexOf(section);
+      routeSteps.forEach((step, index) => step.classList.toggle("is-active", index <= activeIndex));
+    };
 
-    if (profileCopy && profileVisual && profileImpact && introText) {
-      const collision = getProfileCollisionMotion(window.innerWidth);
-      const [copyContact, visualContact] = collision.contact;
-      const [copyRebound, visualRebound] = collision.rebound;
-      const impactScale = collision.impactScale;
-      const resetProfileCollision = () => {
-        gsap.set(profileCopy, { ...collision.first, autoAlpha: 0, scale: 0.96 });
-        gsap.set(profileVisual, { ...collision.second, autoAlpha: 0, scale: 0.96 });
-        gsap.set(profileImpact, { autoAlpha: 0, [impactScale]: 0.08 });
-      };
-      const profileTimeline = gsap.timeline({
-        defaults: { overwrite: "auto" },
-        scrollTrigger: {
-          trigger: "#about",
-          start: "top 78%",
-          toggleActions: getProfileRevealToggleActions(),
-          onLeaveBack: resetProfileCollision,
-        },
+    routeOrder.forEach((section) => {
+      ScrollTrigger.create({
+        trigger: `#${section}`,
+        start: "top 54%",
+        end: "bottom 54%",
+        onEnter: () => activateRoute(section),
+        onEnterBack: () => activateRoute(section),
       });
+    });
 
-      profileTimeline
-        .addLabel("approach")
-        .fromTo(
-          profileCopy,
-          { ...collision.first, autoAlpha: 0, scale: 0.96 },
-          { ...copyContact, autoAlpha: 1, scale: 1, duration: 0.78, ease: "power3.inOut" },
-          "approach",
-        )
-        .fromTo(
-          profileVisual,
-          { ...collision.second, autoAlpha: 0, scale: 0.96 },
-          { ...visualContact, autoAlpha: 1, scale: 1, duration: 0.78, ease: "power3.inOut" },
-          "approach",
-        )
-        .addLabel("impact", "approach+=0.68")
-        .to(profileCopy, {
-          ...copyRebound,
-          scale: 0.985,
-          duration: 0.14,
-          ease: "power2.out",
-        }, "impact")
-        .to(profileVisual, {
-          ...visualRebound,
-          scale: 0.985,
-          duration: 0.14,
-          ease: "power2.out",
-        }, "impact")
-        .fromTo(
-          profileImpact,
-          { autoAlpha: 0, [impactScale]: 0.08 },
-          { autoAlpha: 0.92, [impactScale]: 1, duration: 0.16, ease: "power2.out" },
-          "impact",
-        )
-        .to(profileImpact, {
-          autoAlpha: 0,
-          [impactScale]: 1.42,
-          duration: 0.3,
-          ease: "power2.out",
-        }, "impact+=0.14")
-        .to(profileCopy, {
-          xPercent: 0,
-          yPercent: 0,
-          rotation: 0,
-          scale: 1,
-          duration: 0.44,
-          ease: "back.out(2.1)",
-          clearProps: "opacity,visibility,transform",
-        }, "impact+=0.11")
-        .to(profileVisual, {
-          xPercent: 0,
-          yPercent: 0,
-          rotation: 0,
-          scale: 1,
-          duration: 0.44,
-          ease: "back.out(2.1)",
-          clearProps: "opacity,visibility,transform",
-        }, "impact+=0.11")
-        .addLabel("content", "impact+=0.3")
-        .from("#about .profile-intro-kicker", {
-          autoAlpha: 0,
-          y: 10,
-          duration: 0.34,
-          clearProps: "opacity,visibility,transform",
-        }, "content")
-        .from("#about .profile-intro-title", {
-          autoAlpha: 0,
-          y: 24,
-          clipPath: "inset(0 0 100% 0)",
-          duration: 0.62,
-          ease: motionEase.standard,
-          clearProps: "opacity,visibility,transform,clip-path",
-        }, "content+=0.06")
-        .from(introText, {
-          autoAlpha: 0,
-          y: 12,
-          duration: 0.38,
-          clearProps: "opacity,visibility,transform",
-        }, "content+=0.16")
-        .from("#about .profile-intro-tags", {
-          autoAlpha: 0,
-          y: 12,
-          duration: 0.38,
-          clearProps: "opacity,visibility,transform",
-        }, "content+=0.3")
-        .from("#about .profile-photo-gallery", {
-          autoAlpha: 0,
-          scale: 1.035,
-          duration: 0.58,
-          ease: motionEase.standard,
-          clearProps: "opacity,visibility,transform",
-        }, "content")
-        .from("#about .profile-intro-facts", {
-          autoAlpha: 0,
-          y: 14,
-          duration: 0.42,
-          clearProps: "opacity,visibility,transform",
-        }, "content+=0.2")
-        .to(introCharacters, {
-          opacity: 1,
-          duration: 0.42,
-          ease: "power1.out",
-          stagger: { each: 0.028, from: "start" },
-        }, "content+=0.26");
-    }
+    gsap.utils.toArray<HTMLElement>(".dossier-timeline-item").forEach((item) => {
+      ScrollTrigger.create({
+        trigger: item,
+        start: "top 78%",
+        once: true,
+        onEnter: () => item.classList.add("is-active"),
+      });
+    });
+
+    gsap.utils.toArray<HTMLElement>(".project-card").forEach((card) => {
+      ScrollTrigger.create({
+        trigger: card,
+        start: "top 78%",
+        once: true,
+        onEnter: () => card.classList.add("is-revealed"),
+      });
+    });
+
+    ScrollTrigger.create({
+      trigger: "#contact",
+      start: "top 70%",
+      once: true,
+      onEnter: () => homeRef.current?.querySelector(".contact-section")?.classList.add("is-arrived"),
+    });
+
+    gsap.fromTo(
+      ".dossier-identity, .dossier-work-heading, .dossier-timeline-item",
+      { autoAlpha: 0, y: 18 },
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.68,
+        stagger: 0.1,
+        ease: motionEase.standard,
+        clearProps: "opacity,visibility,transform",
+        scrollTrigger: { trigger: ".profile-dossier", start: "top 78%", once: true },
+      },
+    );
+
+    const badgeEntrance = gsap.timeline({
+      scrollTrigger: {
+        trigger: ".profile-dossier",
+        start: "top 78%",
+        once: true,
+      },
+    });
+    badgeEntrance
+      .fromTo(
+        ".dossier-id-card",
+        { autoAlpha: 0, y: -174, rotation: -7, scale: 0.94 },
+        { autoAlpha: 1, y: 11, rotation: 1.6, scale: 1, duration: 0.64, ease: "power2.in" },
+      )
+      .to(".dossier-id-card", { y: -2, rotation: -0.6, duration: 0.38, ease: "power2.out" })
+      .to(".dossier-id-card", {
+        y: 0,
+        rotation: 0,
+        duration: 0.4,
+        ease: "elastic.out(1, 0.55)",
+        clearProps: "opacity,visibility,transform",
+      })
+      .add(() => {
+        gsap.fromTo(
+          ".badge-entry-glint",
+          { autoAlpha: 0, xPercent: -180 },
+          {
+            autoAlpha: 0.78,
+            xPercent: 240,
+            duration: 0.52,
+            ease: "power2.inOut",
+            force3D: true,
+            onComplete: () => gsap.set(".badge-entry-glint", { clearProps: "opacity,visibility,transform" }),
+          },
+        );
+      }, ">+=0.12");
 
     const revealSections = [
-      {
-        trigger: "#experience",
-        eyebrow: "#experience .home-section-heading p",
-        title: "#experience .home-section-heading h2",
-        media: "#experience .experience-card-art",
-        copy: "#experience .experience-card-copy",
-        stagger: 0.1,
-      },
       {
         trigger: "#featured-projects",
         eyebrow: "#featured-projects .home-section-heading p",
@@ -1185,7 +1323,6 @@ function HomePage({ onOpenProject }: { onOpenProject: (project: ProjectSlot, sou
     });
 
     const parallaxTargets = [
-      ["#experience .experience-card-art", "#experience"],
       ["#featured-projects .project-card-media", "#featured-projects"],
       ["#contact .contact-section-bg", "#contact"],
     ] as const;
@@ -1206,68 +1343,99 @@ function HomePage({ onOpenProject }: { onOpenProject: (project: ProjectSlot, sou
 
   return (
     <main ref={homeRef}>
-      <section className="profile-intro-section" id="about" aria-labelledby="about-title">
-        <div className="profile-intro-layout">
-          <span className="profile-intro-impact" aria-hidden="true" />
-          <article className="profile-intro-pane profile-intro-copy">
-            <p className="profile-intro-kicker">ABOUT ME / UX DESIGNER</p>
-            <h2 className="profile-intro-title" id="about-title">
-              <span>{profile.name}</span>
-              <span>{profile.role}</span>
-            </h2>
-            <p className="profile-intro-about" aria-label={profile.about}>
-              {splitTextForReveal(profile.about).map((character, index) => (
-                <span className="profile-intro-about-char" aria-hidden="true" key={`${character}-${index}`}>
-                  {character}
-                </span>
-              ))}
-            </p>
-            <div className="profile-intro-tags" aria-label="个人标签">
-              {profile.tags.map((tag) => <span key={tag}>{tag}</span>)}
+      <div className="night-route" aria-hidden="true">
+        <span className="night-route-step" data-section="about"><i /></span>
+        <span className="night-route-step" data-section="experience"><i /></span>
+        <span className="night-route-step" data-section="featured-projects"><i /></span>
+        <span className="night-route-step" data-section="contact"><i /></span>
+      </div>
+      <section className="profile-dossier" aria-label="个人介绍与工作经历">
+        <article className="dossier-identity" id="about" aria-labelledby="about-title">
+          <div className="dossier-column-heading">
+            <p>ABOUT ME <span>/ 基本信息</span></p>
+            <span className="dossier-record-number">DOSSIER NO. <b>SH-0211</b></span>
+          </div>
+          <div
+            className="dossier-id-card"
+          >
+            <div className="badge-resting-motion">
+              <span className="badge-entry-glint" aria-hidden="true" />
+              <div className="badge-webbing" aria-hidden="true" />
+              <svg ref={badgeTetherRef} className="badge-tether" width="70" height="125" viewBox="0 0 70 125" aria-hidden="true">
+                <path ref={badgeTetherPathRef} d="M35 80 C35 96 35 108 35 112 S35 120 35 125" />
+              </svg>
+              <div
+                ref={badgeRef}
+                className="badge-pulled-card"
+                onPointerDown={handleBadgePointerDown}
+                onPointerMove={handleBadgePointerMove}
+                onPointerUp={handleBadgePointerUp}
+                onPointerCancel={handleBadgePointerUp}
+                onPointerLeave={resetBadgeHover}
+                aria-label="向下拖动拉出工卡"
+              >
+                <div className="badge-clip" aria-hidden="true"><span /></div>
+                <div className="badge-card">
+                  <span className="badge-corner" data-side-x="left" data-side-y="top" aria-hidden="true" />
+                  <span className="badge-corner" data-side-x="right" data-side-y="top" aria-hidden="true" />
+                  <span className="badge-corner" data-side-x="left" data-side-y="bottom" aria-hidden="true" />
+                  <span className="badge-corner" data-side-x="right" data-side-y="bottom" aria-hidden="true" />
+                  <div className="badge-photo-frame"><img src={profile.photo} alt={`${profile.name}个人照片`} /></div>
+                  <div className="badge-nameplate">
+                    <span className="badge-nameplate-kicker">UX DESIGNER / PORTFOLIO</span>
+                    <strong id="about-title">{profile.name}</strong>
+                    <b className="badge-years">{profile.experience}电商 UX 设计经验</b>
+                  </div>
+                </div>
+              </div>
             </div>
-          </article>
+          </div>
+        </article>
 
-          <article ref={profileVisualRef} className="profile-intro-pane profile-intro-visual">
-            <div className="profile-intro-orbit" aria-hidden="true">
-              <span />
-              <span />
+        <section className="dossier-work" id="experience" aria-labelledby="experience-title">
+          <header className="dossier-work-heading">
+            <div className="dossier-column-heading">
+              <p id="experience-title">WORK EXPERIENCE <span>/ 工作经历</span></p>
+              <span className="dossier-record-number">PROFESSIONAL HISTORY</span>
             </div>
-            <ProfileFlipGallery images={profileGalleryImages} />
-            <div className="profile-intro-facts">
-              <div><span>工作年限</span><strong>{profile.experience}</strong></div>
-              <div><span>所在地</span><strong>{profile.city}</strong></div>
-              <div><span>生日</span><strong>{profile.birthday}</strong></div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section className="experience-section" id="experience" aria-labelledby="experience-title">
-        <HomeSectionHeading eyebrow="EXPERIENCE / CAPABILITY" title="个人经历" id="experience-title" />
-        <div className="experience-card-grid">
-          <ExperienceCard
-            index={0}
-            variant="education"
-            image="/assets/experience-nua.png"
-            imageAlt="南京艺术学院校园入口"
-            eyebrow="EDUCATION"
-            title={education[0].title}
-            meta={education[0].org}
-            time={education[0].time}
-            detail={education[0].detail}
-          />
-          <ExperienceCard
-            index={1}
-            variant="work"
-            image="/assets/experience-pinduoduo.png"
-            imageAlt="拼多多品牌与移动端应用"
-            eyebrow="WORK EXPERIENCE"
-            title={experiences[0].title}
-            meta={experiences[0].org}
-            time={experiences[0].time}
-            detail={experiences[0].detail}
-          />
-        </div>
+          </header>
+          <div className="dossier-timeline">
+            <article className="dossier-timeline-item">
+              <div className="dossier-timeline-heading">
+                <p className="dossier-timeline-date">{experiences[0].time.replace(/\s/g, "")}</p>
+                <h3>拼多多 · UX设计师</h3>
+              </div>
+              <p className="dossier-timeline-date dossier-timeline-group">Push业务渠道组（1年半）</p>
+              <div className="dossier-case">
+                <h4>小红书晒单领现金</h4>
+                <p><strong>产品侧：</strong>参与前期调研，与产品头脑风暴，根据业务诉求提出合理方案</p>
+                <p><strong>设计侧：</strong>从0-1参与全链路交互与UI设计，使用AI工具辅助调研与原型输出</p>
+                <p><strong>团队侧：</strong>持续整理设计规范文档，为团队提效</p>
+              </div>
+              <div className="dossier-case">
+                <h4>PUSH消息资源</h4>
+                <p>产出PUSH消息模板、资源，后期利用AI工具快速验证上线，并持续迭代。</p>
+              </div>
+            </article>
+            <article className="dossier-timeline-item">
+              <div className="dossier-timeline-heading">
+                <p className="dossier-timeline-date">多乐趣组（1年半）</p>
+              </div>
+              <div className="dossier-case">
+                <h4>多多果园</h4>
+                <p><strong>产品侧：</strong>与产品一起参与需求输出，提出多个创新 idea 落地，带来显著增量。</p>
+                <p><strong>设计侧：</strong>核心参与2次战略级大规模改版，重构全局交互架构与视觉层级；独立梳理业务交互沉淀文档。</p>
+              </div>
+            </article>
+            <article className="dossier-timeline-item dossier-timeline-item-muted">
+              <div className="dossier-timeline-heading">
+                <p className="dossier-timeline-date">2022 — 2023</p>
+                <h3>实习经历</h3>
+              </div>
+              <p className="dossier-internship-copy">2022年在腾讯实习游戏交互设计师，2023年在美团实习体验设计师。</p>
+            </article>
+          </div>
+        </section>
       </section>
 
       <section className="page-section" id="featured-projects" aria-label="代表项目">
@@ -1506,7 +1674,7 @@ function DetailPage({
         <SectionHeader title="项目详情展示" />
         {detailImages.length > 0 ? (
           <div className="detail-showcase-list" id="project-chain">
-            {detailImages.map((src, index) => (
+            {detailImages.filter((_, index) => index !== 2).map((src, index) => (
               <figure className="detail-showcase-image" key={src}>
                 <img src={src} alt={`${detailTitle}项目详情展示 ${index + 1}`} loading="lazy" />
               </figure>
@@ -1543,8 +1711,8 @@ export function App() {
   const [transitionRequest, setTransitionRequest] = useState<TransitionRequest | null>(null);
   const pendingNavigationRef = useRef<(() => void) | null>(null);
   const transitionLockedRef = useRef(false);
-  const returnAttemptRef = useRef(0);
   const touchStartYRef = useRef<number | null>(null);
+  const touchStartScrollYRef = useRef<number | null>(null);
 
   const jumpToTop = () => {
     const root = document.documentElement;
@@ -1566,8 +1734,16 @@ export function App() {
     });
   };
 
+  const getHomeContentTop = () => {
+    const contentFrame = document.querySelector<HTMLElement>(".home-content-frame");
+    return contentFrame ? contentFrame.getBoundingClientRect().top + window.scrollY : null;
+  };
+
   const applyNavigation = (nextPage: Page, anchor?: string) => {
-    if (nextPage !== "home" || anchor) {
+    if (nextPage === "home" && !anchor) {
+      setCoverEntered(false);
+      setCoverIntroReady(true);
+    } else {
       setCoverEntered(true);
     }
     setActiveAnchor(nextPage === "home" ? anchor : undefined);
@@ -1693,75 +1869,75 @@ export function App() {
   useEffect(() => {
     if (page !== "home" || !coverEntered) return;
 
-    const snapToContentStart = () => {
-      document.querySelector(".home-content-frame")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-
-    const returnToCover = () => {
-      returnAttemptRef.current = 0;
-      setCoverIntroReady(false);
-      setCoverEntered(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    };
-
-    const handleReturnIntent = (event: WheelEvent | TouchEvent, deltaY: number) => {
-      const contentFrame = document.querySelector<HTMLElement>(".home-content-frame");
-      if (!contentFrame || deltaY >= 0) {
-        if (deltaY > 0) returnAttemptRef.current = 0;
-        return;
-      }
-
-      const contentTop = contentFrame.getBoundingClientRect().top + window.scrollY;
-      const isAtContentStart = window.scrollY <= contentTop + 36;
-      if (!isAtContentStart) {
-        returnAttemptRef.current = 0;
-        return;
-      }
-
-      event.preventDefault();
-      returnAttemptRef.current += 1;
-
-      if (returnAttemptRef.current >= 2) {
-        returnToCover();
-        return;
-      }
-
-      snapToContentStart();
+    const getContentStart = () => {
+      return getHomeContentTop();
     };
 
     const handleWheel = (event: WheelEvent) => {
-      handleReturnIntent(event, event.deltaY);
+      if (event.deltaY >= 0) return;
+      const contentStart = getContentStart();
+      if (contentStart === null) return;
+      const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? window.innerHeight
+          : 1;
+      const targetScrollY = window.scrollY + event.deltaY * deltaScale;
+      if (targetScrollY <= contentStart) {
+        event.preventDefault();
+        if (window.scrollY > contentStart + 1) {
+          window.scrollTo({ top: contentStart, behavior: "auto" });
+        }
+      }
     };
 
     const handleTouchStart = (event: TouchEvent) => {
       touchStartYRef.current = event.touches[0]?.clientY ?? null;
+      touchStartScrollYRef.current = window.scrollY;
     };
 
     const handleTouchMove = (event: TouchEvent) => {
-      if (touchStartYRef.current === null) return;
+      if (touchStartYRef.current === null || touchStartScrollYRef.current === null) return;
       const currentY = event.touches[0]?.clientY ?? touchStartYRef.current;
-      handleReturnIntent(event, touchStartYRef.current - currentY);
+      const contentStart = getContentStart();
+      if (contentStart === null) return;
+      const targetScrollY = touchStartScrollYRef.current - (currentY - touchStartYRef.current);
+      if (currentY > touchStartYRef.current && targetScrollY <= contentStart) {
+        event.preventDefault();
+        if (window.scrollY > contentStart + 1) window.scrollTo({ top: contentStart, behavior: "auto" });
+      }
+    };
+
+    const clearTouchStart = () => {
+      touchStartYRef.current = null;
+      touchStartScrollYRef.current = null;
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false });
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", clearTouchStart, { passive: true });
+    window.addEventListener("touchcancel", clearTouchStart, { passive: true });
 
     return () => {
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", clearTouchStart);
+      window.removeEventListener("touchcancel", clearTouchStart);
     };
   }, [coverEntered, page]);
 
   const enterHomeContent = () => {
-    returnAttemptRef.current = 0;
     setCoverEntered(true);
     window.requestAnimationFrame(() => {
-      document.querySelector(".home-content-frame")?.scrollIntoView({
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
-        block: "start",
-      });
+      const contentTop = getHomeContentTop();
+      if (contentTop !== null) {
+        window.scrollTo({
+          top: contentTop,
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+        });
+      }
     });
   };
 
@@ -1783,7 +1959,7 @@ export function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${page === "home" && coverEntered ? "is-cover-entered" : ""}`}>
       <CursorTrail />
       <PageTransitionLayer
         request={transitionRequest}
